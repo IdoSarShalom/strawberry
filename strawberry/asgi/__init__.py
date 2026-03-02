@@ -126,6 +126,12 @@ class GraphQL(
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] == "http":
+            path = scope.get("path", "")
+            if path.startswith("/vendor/"):
+                response = self._serve_vendor_file(path)
+                await response(scope, receive, send)
+                return
+
             http_request = Request(scope=scope, receive=receive)
 
             try:
@@ -139,6 +145,30 @@ class GraphQL(
             await self.run(ws_request)
         else:  # pragma: no cover
             raise ValueError("Unknown scope type: {!r}".format(scope["type"]))
+
+    @staticmethod
+    def _serve_vendor_file(path: str) -> Response:
+        import mimetypes
+        import pathlib
+
+        filename = path.split("/vendor/", 1)[1]
+        # Prevent path traversal
+        if ".." in filename or filename.startswith("/"):
+            return PlainTextResponse("Forbidden", status_code=403)
+
+        vendor_dir = pathlib.Path(__file__).parents[1] / "static" / "vendor"
+        file_path = vendor_dir / filename
+
+        if not file_path.is_file():
+            return PlainTextResponse("Not Found", status_code=404)
+
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if content_type is None:
+            content_type = "application/octet-stream"
+
+        from starlette.responses import FileResponse
+
+        return FileResponse(str(file_path), media_type=content_type)
 
     async def get_root_value(self, request: Request | WebSocket) -> RootValue | None:
         return None

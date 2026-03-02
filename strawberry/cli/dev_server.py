@@ -1,8 +1,10 @@
 import os
+import pathlib
 from typing import Any
 
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from strawberry import Schema
 from strawberry.asgi import GraphQL
@@ -14,6 +16,10 @@ app.add_middleware(
     CORSMiddleware, allow_headers=["*"], allow_origins=["*"], allow_methods=["*"]
 )
 
+# Serve vendored static assets (JS/CSS) for the GraphQL IDE
+vendor_dir = pathlib.Path(__file__).parents[1] / "static" / "vendor"
+app.mount("/vendor", StaticFiles(directory=str(vendor_dir)), name="vendor")
+
 schema_import_string = os.environ[DEV_SERVER_SCHEMA_ENV_VAR_KEY]
 schema_symbol = import_module_symbol(schema_import_string, default_symbol_name="schema")
 
@@ -24,3 +30,4 @@ paths = ["/", "/graphql"]
 for path in paths:
     app.add_route(path, graphql_app)  # type: ignore
     app.add_websocket_route(path, graphql_app)  # type: ignore
+

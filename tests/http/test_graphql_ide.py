@@ -26,13 +26,13 @@ async def test_renders_graphql_ide(
     assert "<title>Strawberry" in response.text
 
     if graphql_ide == "apollo-sandbox":
-        assert "embeddable-sandbox.cdn.apollographql" in response.text
+        assert "/vendor/embeddable-sandbox" in response.text
 
     if graphql_ide == "pathfinder":
-        assert "@pathfinder-ide/react" in response.text
+        assert "/vendor/pathfinder-react.esm.js" in response.text
 
     if graphql_ide == "graphiql":
-        assert "unpkg.com/graphiql" in response.text
+        assert "/vendor/graphiql.min.js" in response.text
 
 
 async def test_does_not_render_graphiql_if_wrong_accept(
