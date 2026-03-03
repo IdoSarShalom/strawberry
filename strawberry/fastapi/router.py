@@ -247,8 +247,37 @@ class GraphQLRouter(
         ) -> None:
             await self.run(request=websocket, context=context, root_value=root_value)
 
+        @self.get("/vendor/{filename:path}", include_in_schema=False)
+        async def serve_vendor_file(filename: str) -> Response:
+            import mimetypes
+            import pathlib
+
+            if ".." in filename or filename.startswith("/"):
+                return PlainTextResponse("Forbidden", status_code=403)
+
+            vendor_dir = (
+                pathlib.Path(__file__).parents[1] / "static" / "vendor"
+            )
+            file_path = vendor_dir / filename
+
+            if not file_path.is_file():
+                return PlainTextResponse("Not Found", status_code=404)
+
+            content_type, _ = mimetypes.guess_type(str(file_path))
+            if content_type is None:
+                content_type = "application/octet-stream"
+
+            from starlette.responses import FileResponse
+
+            return FileResponse(str(file_path), media_type=content_type)
+
     async def render_graphql_ide(self, request: Request) -> HTMLResponse:
-        return HTMLResponse(self.graphql_ide_html)
+        html = self.graphql_ide_html
+        # Rewrite absolute /vendor/ paths to be relative to this router's
+        # mount point so that the vendor route registered above can serve them.
+        base_path = request.scope.get("path", "").rstrip("/")
+        html = html.replace("/vendor/", f"{base_path}/vendor/")
+        return HTMLResponse(html)
 
     async def get_context(
         self, request: Request | WebSocket, response: Response | WebSocket

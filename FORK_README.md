@@ -19,12 +19,13 @@ All external dependencies are **vendored locally** inside the library and served
 
 | Component | Change |
 |---|---|
-| `strawberry/static/vendor/` | **16 downloaded JS/CSS files** — all CDN assets stored locally |
+| `strawberry/static/vendor/` | **17 downloaded JS/CSS files** — all CDN assets stored locally |
 | `strawberry/static/graphiql.html` | CDN URLs → local `/vendor/` paths |
 | `strawberry/static/pathfinder.html` | CDN URLs → local `/vendor/` paths |
 | `strawberry/static/apollo-sandbox.html` | CDN URL → local `/vendor/` path |
 | `strawberry/cli/dev_server.py` | Mounts `/vendor` static files route |
 | `strawberry/asgi/__init__.py` | Serves `/vendor/` files from ASGI app |
+| `strawberry/vendor.py` | **NEW**: `mount_vendor_files()` utility for FastAPI/Starlette |
 | `tests/http/test_graphql_ide.py` | Updated assertions for local paths |
 
 ### Limitations
@@ -44,6 +45,42 @@ strawberry dev app
 
 # Open in browser
 # http://localhost:8000/graphql
+```
+
+---
+
+## Framework Integration
+
+The following frameworks serve vendor files **automatically** — no setup needed:
+- ✅ **CLI dev server** (`strawberry dev app`)
+- ✅ **ASGI / Starlette** (direct `GraphQL` app)
+- ✅ **FastAPI** (`GraphQLRouter` — auto-serves `/vendor/` files and rewrites paths)
+
+Other frameworks need a manual one-time setup:
+
+### Django
+
+Add a URL pattern in `urls.py`:
+
+```python
+import pathlib
+from django.conf.urls.static import static
+
+vendor_dir = pathlib.Path(__import__("strawberry").__file__).parent / "static" / "vendor"
+urlpatterns += static("/vendor/", document_root=str(vendor_dir))
+```
+
+### Flask
+
+```python
+from flask import send_from_directory
+import pathlib
+
+vendor_dir = pathlib.Path(__import__("strawberry").__file__).parent / "static" / "vendor"
+
+@app.route("/vendor/<path:filename>")
+def serve_vendor(filename):
+    return send_from_directory(str(vendor_dir), filename)
 ```
 
 ---
